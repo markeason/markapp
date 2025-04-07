@@ -1,0 +1,33 @@
+//
+//  .gitignore
+//  markapp
+//
+//  Created by Eason Tang on 4/2/25.
+//
+
+# Xcode
+DerivedData/
+build/
+*.xcworkspace
+*.xcuserstate
+*.xcuserdata
+
+# SwiftPM
+.swiftpm
+Package.resolved
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/
+
+# Fastlane
+fastlane/report.xml
+fastlane/screenshots
+fastlane/test_output
+
+# Misc
+*.DS_Store
+.env
+secrets.xcconfig
