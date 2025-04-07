@@ -5,6 +5,11 @@ import Supabase
 struct MarkAppApp: App {
     @StateObject private var authManager = AuthManager()
     
+    init() {
+        // Validate API keys on app startup
+        AppConfig.validateAPIKeys()
+    }
+    
     var body: some Scene {
         WindowGroup {
             ContentRoot()
