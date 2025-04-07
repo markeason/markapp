@@ -1,4 +1,3 @@
-import AppConfig
 //
 //  AuthManager.swift
 //  markapp
@@ -40,8 +39,72 @@ class AuthManager: ObservableObject {
         
         _ = URLSession(configuration: config)
         
+        print("🔑 Auth: Supabase URL from config: '\(AppConfig.supabaseURL)'")
+        
+        // Check if Supabase URL is configured
+        if AppConfig.supabaseURL.isEmpty {
+            print("❌ Auth: Supabase URL is empty. Please set SUPABASE_URL in secrets.xcconfig.")
+            // Initialize with a placeholder URL that will result in connection failures
+            // rather than crashing the app immediately
+            self.supabase = SupabaseClient(
+                supabaseURL: URL(string: "https://example.supabase.co")!,
+                supabaseKey: AppConfig.supabaseKey
+            )
+            self.error = NSError(
+                domain: "AuthManager",
+                code: -1001,
+                userInfo: [NSLocalizedDescriptionKey: "Supabase URL is not configured. Please check your app configuration."]
+            )
+            return
+        }
+        
+        // Trim any whitespace that might have been added in the configuration file
+        let trimmedUrlString = AppConfig.supabaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Ensure the URL has a proper protocol prefix
+        var urlString = trimmedUrlString
+        if !urlString.lowercased().hasPrefix("http") {
+            urlString = "https://" + urlString
+            print("🔄 Auth: Added https:// prefix to URL: '\(urlString)'")
+        }
+        
+        print("🔍 Auth: Attempting to create URL from: '\(urlString)'")
+        
+        // Safely handle URL creation to avoid force-unwrapping errors
+        guard let supabaseURL = URL(string: urlString) else {
+            print("❌ Auth: Failed to create URL object from: '\(urlString)'")
+            // Initialize with a placeholder URL that will result in connection failures
+            // rather than crashing the app
+            self.supabase = SupabaseClient(
+                supabaseURL: URL(string: "https://example.supabase.co")!,
+                supabaseKey: AppConfig.supabaseKey
+            )
+            self.error = NSError(
+                domain: "AuthManager",
+                code: -1002,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid Supabase URL format. Please check your app configuration."]
+            )
+            return
+        }
+        
+        // Additional validation of the URL components
+        guard let host = supabaseURL.host, !host.isEmpty else {
+            print("❌ Auth: URL has no host component: '\(supabaseURL)'")
+            self.supabase = SupabaseClient(
+                supabaseURL: URL(string: "https://example.supabase.co")!,
+                supabaseKey: AppConfig.supabaseKey
+            )
+            self.error = NSError(
+                domain: "AuthManager",
+                code: -1003,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid Supabase URL format (no host). Please check your app configuration."]
+            )
+            return
+        }
+        
+        print("✅ Auth: Successfully created Supabase URL: '\(supabaseURL)' with host: '\(host)'")
         self.supabase = SupabaseClient(
-            supabaseURL: URL(string: AppConfig.supabaseURL)!,
+            supabaseURL: supabaseURL,
             supabaseKey: AppConfig.supabaseKey
         )
         

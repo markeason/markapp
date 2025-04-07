@@ -1,4 +1,3 @@
-import AppConfig
 import Foundation
 import Supabase
 import Combine
@@ -83,8 +82,57 @@ class SupabaseManager {
     var userPublisher = PassthroughSubject<Void, Never>()
     
     private init() {
+        print("🔑 SupabaseManager: Supabase URL from config: '\(AppConfig.supabaseURL)'")
+        
+        // Check if Supabase URL is configured
+        if AppConfig.supabaseURL.isEmpty {
+            print("❌ SupabaseManager: Supabase URL is empty. Please set SUPABASE_URL in secrets.xcconfig.")
+            // Initialize with a placeholder URL that will result in connection failures
+            // rather than crashing the app immediately
+            self.supabase = SupabaseClient(
+                supabaseURL: URL(string: "https://example.supabase.co")!,
+                supabaseKey: AppConfig.supabaseKey
+            )
+            return
+        }
+        
+        // Trim any whitespace that might have been added in the configuration file
+        let trimmedUrlString = AppConfig.supabaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Ensure the URL has a proper protocol prefix
+        var urlString = trimmedUrlString
+        if !urlString.lowercased().hasPrefix("http") {
+            urlString = "https://" + urlString
+            print("🔄 SupabaseManager: Added https:// prefix to URL: '\(urlString)'")
+        }
+        
+        print("🔍 SupabaseManager: Attempting to create URL from: '\(urlString)'")
+        
+        // Safely handle URL creation to avoid force-unwrapping errors
+        guard let supabaseURL = URL(string: urlString) else {
+            print("❌ SupabaseManager: Failed to create URL object from: '\(urlString)'")
+            // Initialize with a placeholder URL that will result in connection failures
+            // rather than crashing the app
+            self.supabase = SupabaseClient(
+                supabaseURL: URL(string: "https://example.supabase.co")!,
+                supabaseKey: AppConfig.supabaseKey
+            )
+            return
+        }
+        
+        // Additional validation of the URL components
+        guard let host = supabaseURL.host, !host.isEmpty else {
+            print("❌ SupabaseManager: URL has no host component: '\(supabaseURL)'")
+            self.supabase = SupabaseClient(
+                supabaseURL: URL(string: "https://example.supabase.co")!,
+                supabaseKey: AppConfig.supabaseKey
+            )
+            return
+        }
+        
+        print("✅ SupabaseManager: Successfully created Supabase URL: '\(supabaseURL)' with host: '\(host)'")
         self.supabase = SupabaseClient(
-            supabaseURL: URL(string: AppConfig.supabaseURL)!,
+            supabaseURL: supabaseURL,
             supabaseKey: AppConfig.supabaseKey
         )
     }
