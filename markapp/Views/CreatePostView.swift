@@ -247,13 +247,19 @@ struct CreatePostView: View {
         Task {
             do {
                 print("📱 DEBUG: Calling viewModel.createPost")
+                
+                // Get the user's name from auth manager, with a better fallback
+                let userName = authManager.currentUser?.name.isEmpty == false 
+                    ? authManager.currentUser!.name 
+                    : "Anonymous Reader"
+                
                 await viewModel.createPost(
                     title: title,
                     body: postBody,
                     bookID: selectedBookID!,
                     sessionID: selectedSessionID!,
                     userID: userID,
-                    userName: authManager.currentUser?.name ?? "Unknown User"
+                    userName: userName
                 )
                 
                 print("📱 DEBUG: Post creation completed, dismissing view")

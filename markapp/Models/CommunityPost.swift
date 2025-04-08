@@ -29,4 +29,9 @@ struct CommunityPost: Identifiable, Codable, Hashable {
         let index = body.index(body.startIndex, offsetBy: 297)
         return String(body[..<index]) + "..."
     }
+    
+    // Display a default name if user name is empty
+    var displayName: String {
+        return userName.isEmpty ? "Anonymous Reader" : userName
+    }
 } 

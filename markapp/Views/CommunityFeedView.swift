@@ -145,7 +145,7 @@ struct PostCardView: View {
                         .font(.headline)
                         .foregroundColor(.primary)
                     
-                    Text("By \(post.userName)")
+                    Text("By \(post.displayName)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }

@@ -681,11 +681,35 @@ class SupabaseManager {
         // Parse the response data
         let postsArray = parseDataResponse(result.data, defaultValue: [[String: Any]]()) as [[String: Any]]
         
+        // Extract all unique user IDs from posts to get their profiles efficiently
+        var uniqueUserIds = Set<String>()
+        var postsData: [(postData: [String: Any], userId: String)] = []
+        
+        // First pass: collect all unique user IDs
+        for postData in postsArray {
+            if let userId = postData["user_id"] as? String {
+                uniqueUserIds.insert(userId)
+                postsData.append((postData: postData, userId: userId))
+            }
+        }
+        
+        // Create a dictionary to map user IDs to names
+        var userNames: [String: String] = [:]
+        
+        // Attempt to get profiles for all users at once (for efficiency)
+        for userId in uniqueUserIds {
+            if let profile = try? await getUserProfile(userId: userId) {
+                if !profile.name.isEmpty {
+                    userNames[userId] = profile.name
+                }
+            }
+        }
+        
+        // Second pass: create the community posts with user names
         var communityPosts: [CommunityPost] = []
         
-        for postData in postsArray {
+        for (postData, userId) in postsData {
             if let id = postData["id"] as? String,
-               let userId = postData["user_id"] as? String,
                let bookId = postData["book_id"] as? String,
                let sessionId = postData["session_id"] as? String,
                let title = postData["title"] as? String,
@@ -693,8 +717,8 @@ class SupabaseManager {
                let createdAtString = postData["created_at"] as? String,
                let createdAt = ISO8601DateFormatter().date(from: createdAtString) {
                 
-                // Use a placeholder username until we can fix the proper relationship
-                let userName = "User " + userId.prefix(4)
+                // Get the user's name from our dictionary, or use default fallback
+                let userName = userNames[userId] ?? "User " + userId.prefix(4)
                 
                 let post = CommunityPost(
                     id: UUID(uuidString: id) ?? UUID(),
@@ -736,8 +760,15 @@ class SupabaseManager {
             return nil
         }
         
-        // Use a placeholder username until we can fix the proper relationship
-        let userName = "User " + userId.prefix(4)
+        // Always try to get the most up-to-date user profile
+        var userName = "User " + userId.prefix(4) // Default fallback
+        
+        // Try to get the user's profile for their name
+        if let userProfile = try? await getUserProfile(userId: userId) {
+            if !userProfile.name.isEmpty {
+                userName = userProfile.name
+            }
+        }
         
         var post = CommunityPost(
             id: UUID(uuidString: id) ?? UUID(),

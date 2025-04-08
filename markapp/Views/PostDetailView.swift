@@ -51,7 +51,7 @@ struct PostDetailView: View {
                         }
                         
                         HStack {
-                            Text("By \(post.userName)")
+                            Text("By \(post.displayName)")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                             
