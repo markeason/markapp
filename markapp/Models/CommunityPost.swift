@@ -32,6 +32,9 @@ struct CommunityPost: Identifiable, Codable, Hashable {
     
     // Display a default name if user name is empty
     var displayName: String {
-        return userName.isEmpty ? "Anonymous Reader" : userName
+        if userName.isEmpty {
+            return "Reader \(userID.prefix(4))"
+        }
+        return userName
     }
 } 

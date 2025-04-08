@@ -710,16 +710,33 @@ class AuthManager: ObservableObject {
         
         do {
             if let profile = try await SupabaseManager.shared.getUserProfile(userId: userId) {
-                print("✅ DEBUG: User profile found in Supabase")
+                print("✅ DEBUG: User profile found in Supabase, name: '\(profile.name)'")
                 currentUser = profile
+                
+                // Update profile if name is empty
+                if profile.name.isEmpty {
+                    print("⚠️ DEBUG: User profile has empty name, updating with default")
+                    var updatedProfile = profile
+                    updatedProfile.name = "Reader \(userId.prefix(4))"
+                    currentUser = updatedProfile
+                    
+                    // Save the updated profile to Supabase
+                    try await SupabaseManager.shared.saveUserProfile(updatedProfile, userId: userId)
+                }
             } else {
                 // Create a default profile if none exists
-                print("⚠️ DEBUG: No user profile found, creating default profile")
-                let newUser = User.empty
+                print("⚠️ DEBUG: No user profile found, creating profile with name")
+                let defaultName = "Reader \(userId.prefix(4))"
+                let newUser = User(
+                    name: defaultName,
+                    location: "",
+                    joinDate: Date(),
+                    profilePhotoData: nil
+                )
                 currentUser = newUser
                 
                 // Save the default profile to Supabase
-                print("🔍 DEBUG: Saving default profile to Supabase")
+                print("🔍 DEBUG: Saving default profile to Supabase with name: \(defaultName)")
                 try await SupabaseManager.shared.saveUserProfile(newUser, userId: userId)
             }
         } catch {

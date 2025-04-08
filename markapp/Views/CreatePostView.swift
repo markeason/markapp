@@ -214,10 +214,7 @@ struct CreatePostView: View {
         print("📱 DEBUG: AuthManager currentUser exists? \(authManager.currentUser != nil)")
         print("📱 DEBUG: Attempting to get authManager.currentUserId...")
         
-        let userIdValue = authManager.currentUserId
-        print("📱 DEBUG: userID exists? \(userIdValue != nil)")
-        
-        // Get the required IDs, using fallbacks if needed
+        // Get the required IDs
         guard let bookID = selectedBookID, 
               let sessionID = selectedSessionID else {
             print("❌ DEBUG: Missing book or session ID")
@@ -225,19 +222,21 @@ struct CreatePostView: View {
             return
         }
         
-        // Check if we have a valid user ID
-        guard let userID = userIdValue else {
-            print("❌ DEBUG: No valid user ID available, using hardcoded fallback")
-            // Use hardcoded user ID as a last resort
-            let fallbackUserID = "f0f39ede-7169-47dd-beb8-617910e9f812"
-            print("📱 DEBUG: Using fallback userID: \(fallbackUserID)")
-            
-            // Continue with post creation using the fallback ID
-            createPostWithUserId(fallbackUserID)
+        // Ensure user is authenticated
+        guard authManager.isAuthenticated else {
+            print("❌ DEBUG: User is not authenticated")
+            errorMessage = "Please sign in to create a post"
             return
         }
         
-        print("📱 DEBUG: Using userID: \(userID)")
+        // Get current user ID
+        guard let userID = authManager.currentUserId else {
+            print("❌ DEBUG: No valid user ID available")
+            errorMessage = "Unable to create post: User ID not found"
+            return
+        }
+        
+        print("📱 DEBUG: Using authenticated userID: \(userID)")
         createPostWithUserId(userID)
     }
     
@@ -248,10 +247,44 @@ struct CreatePostView: View {
             do {
                 print("📱 DEBUG: Calling viewModel.createPost")
                 
-                // Get the user's name from auth manager, with a better fallback
-                let userName = authManager.currentUser?.name.isEmpty == false 
-                    ? authManager.currentUser!.name 
-                    : "Anonymous Reader"
+                // Get or create the user's profile
+                var userName = "Reader \(userID.prefix(4))" // Default fallback
+                
+                // Try to get existing profile
+                if let profile = try? await SupabaseManager.shared.getUserProfile(userId: userID) {
+                    if !profile.name.isEmpty {
+                        userName = profile.name
+                        print("📱 DEBUG: Got name from profile: '\(userName)'")
+                    } else {
+                        // Profile exists but has no name, update it
+                        print("📱 DEBUG: Profile exists but has no name, updating it")
+                        let defaultName = authManager.currentUser?.name ?? userName
+                        let updatedUser = User(
+                            name: defaultName,
+                            location: profile.location,
+                            joinDate: profile.joinDate,
+                            profilePhotoData: profile.profilePhotoData
+                        )
+                        try await SupabaseManager.shared.saveUserProfile(updatedUser, userId: userID)
+                        userName = defaultName
+                        print("📱 DEBUG: Updated profile with name: '\(userName)'")
+                    }
+                } else {
+                    // No profile found, create one
+                    print("📱 DEBUG: No profile found, creating new profile")
+                    let defaultName = authManager.currentUser?.name ?? userName
+                    let newUser = User(
+                        name: defaultName,
+                        location: "",
+                        joinDate: Date(),
+                        profilePhotoData: nil
+                    )
+                    try await SupabaseManager.shared.saveUserProfile(newUser, userId: userID)
+                    userName = defaultName
+                    print("📱 DEBUG: Created new profile with name: '\(userName)'")
+                }
+                
+                print("📱 DEBUG: Final userName for post: '\(userName)'")
                 
                 await viewModel.createPost(
                     title: title,

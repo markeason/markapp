@@ -107,6 +107,9 @@ class SupabaseManager {
     var userPublisher = PassthroughSubject<Void, Never>()
     var communityPostsPublisher = PassthroughSubject<Void, Never>()
     
+    // Cache for user names to reduce profile fetching
+    private var userNames: [String: String] = [:]
+    
     // Realtime subscription references
     private var communityPostsSubscription: RealtimeChannelV2?
     private var isRealtimeConnected = false
@@ -226,6 +229,11 @@ class SupabaseManager {
                     .execute()
                 print("Profile creation successful")
             }
+            
+            // Update the cache with the new name
+            if !user.name.isEmpty {
+                userNames[userId.lowercased()] = user.name
+            }
         } catch {
             print("Error saving profile: \(error.localizedDescription)")
             throw error
@@ -265,50 +273,71 @@ class SupabaseManager {
     }
     
     func getUserProfile(userId: String) async throws -> User? {
-        let result = try await supabase
-            .from("profiles")
-            .select()
-            .eq("id", value: userId)
-            .execute()
+        print("🔍 DEBUG: Fetching profile for userId: \(userId)")
         
-        print("Supabase data type: \(type(of: result.data))")
+        // Use proper case-insensitive comparison for the user ID
+        let lowercaseUserId = userId.lowercased()
         
-        // Parse the response data
-        let profilesArray = parseDataResponse(result.data, defaultValue: [[String: Any]]()) as [[String: Any]]
-        
-        if let profile = profilesArray.first {
-            // Parse the data
-            let name = profile["name"] as? String ?? ""
-            let location = profile["location"] as? String ?? ""
+        do {
+            let result = try await supabase
+                .from("profiles")
+                .select()
+                .eq("id", value: lowercaseUserId)
+                .execute()
             
-            // Parse date
-            let joinDate: Date
-            if let dateString = profile["join_date"] as? String, 
-               let parsedDate = ISO8601DateFormatter().date(from: dateString) {
-                joinDate = parsedDate
-            } else {
-                joinDate = Date()
-            }
+            // Parse the response data
+            let profilesArray = parseDataResponse(result.data, defaultValue: [[String: Any]]()) as [[String: Any]]
             
-            // Get profile photo if it exists
-            var profilePhotoData: Data? = nil
-            if profile["profile_photo_url"] != nil {
-                do {
-                    profilePhotoData = try await getProfilePhoto(userId: userId)
-                } catch {
-                    print("Error fetching profile photo: \(error.localizedDescription)")
+            if let profile = profilesArray.first {
+                print("✅ DEBUG: Profile data found")
+                
+                // Parse the data
+                let name = profile["name"] as? String ?? ""
+                let location = profile["location"] as? String ?? ""
+                
+                print("👤 DEBUG: User profile name: '\(name)'")
+                
+                // Parse date
+                let joinDate: Date
+                if let dateString = profile["join_date"] as? String, 
+                   let parsedDate = ISO8601DateFormatter().date(from: dateString) {
+                    joinDate = parsedDate
+                } else {
+                    joinDate = Date()
                 }
+                
+                // Get profile photo if it exists
+                var profilePhotoData: Data? = nil
+                if profile["profile_photo_url"] != nil {
+                    do {
+                        profilePhotoData = try await getProfilePhoto(userId: lowercaseUserId)
+                    } catch {
+                        print("Error fetching profile photo: \(error.localizedDescription)")
+                    }
+                }
+                
+                let user = User(
+                    name: name,
+                    location: location,
+                    joinDate: joinDate,
+                    profilePhotoData: profilePhotoData
+                )
+                
+                // Cache the user name if it's not empty
+                if !name.isEmpty {
+                    userNames[lowercaseUserId] = name
+                }
+                
+                print("✅ DEBUG: Returning user profile with name: '\(user.name)'")
+                return user
             }
             
-            return User(
-                name: name,
-                location: location,
-                joinDate: joinDate,
-                profilePhotoData: profilePhotoData
-            )
+            print("❌ DEBUG: No profile found for user ID: \(userId)")
+            return nil
+        } catch {
+            print("❌ ERROR: Failed to fetch user profile: \(error.localizedDescription)")
+            throw error
         }
-        
-        return nil
     }
     
     private func saveProfilePhoto(userId: String, photoData: Data) async throws {
@@ -681,46 +710,66 @@ class SupabaseManager {
         // Parse the response data
         let postsArray = parseDataResponse(result.data, defaultValue: [[String: Any]]()) as [[String: Any]]
         
-        // Extract all unique user IDs from posts to get their profiles efficiently
+        // Extract all unique user IDs and book IDs from posts to get them efficiently
         var uniqueUserIds = Set<String>()
-        var postsData: [(postData: [String: Any], userId: String)] = []
+        var uniqueBookIds = Set<String>()
+        var uniqueSessionIds = Set<String>()
+        var postsData: [(postData: [String: Any], userId: String, bookId: String, sessionId: String)] = []
         
-        // First pass: collect all unique user IDs
+        // First pass: collect all unique IDs
         for postData in postsArray {
-            if let userId = postData["user_id"] as? String {
+            if let userId = postData["user_id"] as? String,
+               let bookId = postData["book_id"] as? String,
+               let sessionId = postData["session_id"] as? String {
                 uniqueUserIds.insert(userId)
-                postsData.append((postData: postData, userId: userId))
+                uniqueBookIds.insert(bookId)
+                uniqueSessionIds.insert(sessionId)
+                postsData.append((postData: postData, userId: userId, bookId: bookId, sessionId: sessionId))
             }
         }
         
-        // Create a dictionary to map user IDs to names
-        var userNames: [String: String] = [:]
+        // Create dictionaries to map IDs to their respective objects
+        var books: [String: Book] = [:]
+        var sessions: [String: ReadingSession] = [:]
         
         // Attempt to get profiles for all users at once (for efficiency)
+        // but only if we don't already have them cached
         for userId in uniqueUserIds {
-            if let profile = try? await getUserProfile(userId: userId) {
+            if userNames[userId] == nil, let profile = try? await getUserProfile(userId: userId) {
                 if !profile.name.isEmpty {
                     userNames[userId] = profile.name
                 }
             }
         }
         
-        // Second pass: create the community posts with user names
+        // Attempt to get all books at once (for efficiency)
+        for bookId in uniqueBookIds {
+            if let book = try? await getBook(bookId: bookId) {
+                books[bookId] = book
+            }
+        }
+        
+        // Attempt to get all reading sessions at once (for efficiency)
+        for sessionId in uniqueSessionIds {
+            if let session = try? await getReadingSession(sessionId: sessionId) {
+                sessions[sessionId] = session
+            }
+        }
+        
+        // Second pass: create the community posts with related data
         var communityPosts: [CommunityPost] = []
         
-        for (postData, userId) in postsData {
+        for (postData, userId, bookId, sessionId) in postsData {
             if let id = postData["id"] as? String,
-               let bookId = postData["book_id"] as? String,
-               let sessionId = postData["session_id"] as? String,
                let title = postData["title"] as? String,
                let body = postData["body"] as? String,
                let createdAtString = postData["created_at"] as? String,
                let createdAt = ISO8601DateFormatter().date(from: createdAtString) {
                 
                 // Get the user's name from our dictionary, or use default fallback
-                let userName = userNames[userId] ?? "User " + userId.prefix(4)
+                let userName = userNames[userId] ?? "Reader " + userId.prefix(4)
                 
-                let post = CommunityPost(
+                var post = CommunityPost(
                     id: UUID(uuidString: id) ?? UUID(),
                     userID: userId,
                     userName: userName,
@@ -730,6 +779,10 @@ class SupabaseManager {
                     body: body,
                     createdAt: createdAt
                 )
+                
+                // Add related data
+                post.book = books[bookId]
+                post.session = sessions[sessionId]
                 
                 communityPosts.append(post)
             }
@@ -760,13 +813,18 @@ class SupabaseManager {
             return nil
         }
         
-        // Always try to get the most up-to-date user profile
-        var userName = "User " + userId.prefix(4) // Default fallback
+        // Only fetch user profile if we need it
+        var userName = "Reader " + userId.prefix(4) // Default fallback
         
-        // Try to get the user's profile for their name
-        if let userProfile = try? await getUserProfile(userId: userId) {
+        // Try to get the user's profile for their name only if necessary
+        // This avoids redundant profile fetches if we already have a valid name
+        if let storedUserName = userNames[userId], !storedUserName.isEmpty {
+            userName = storedUserName
+        } else if let userProfile = try? await getUserProfile(userId: userId) {
             if !userProfile.name.isEmpty {
                 userName = userProfile.name
+                // Cache the username for future use
+                userNames[userId] = userName
             }
         }
         

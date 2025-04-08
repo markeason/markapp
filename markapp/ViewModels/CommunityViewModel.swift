@@ -83,6 +83,7 @@ class CommunityViewModel: ObservableObject {
     func createPost(title: String, body: String, bookID: UUID, sessionID: UUID, userID: String, userName: String) async {
         print("🔄 DEBUG: createPost called in CommunityViewModel")
         print("🔄 DEBUG: Parameters - Title: \(title), UserID: \(userID)")
+        print("🔄 DEBUG: Parameters - UserName: '\(userName)'")
         print("🔄 DEBUG: Parameters - BookID: \(bookID), SessionID: \(sessionID)")
         
         isLoading = true
@@ -91,9 +92,32 @@ class CommunityViewModel: ObservableObject {
         // Limit to 300 characters
         let limitedBody = body.count <= 300 ? body : String(body.prefix(300))
         
+        // Only fetch the profile if the userName is empty or appears to be a default name
+        var finalUserName = userName
+        
+        if userName.isEmpty || userName.hasPrefix("Reader ") {
+            do {
+                if let userProfile = try await supabaseManager.getUserProfile(userId: userID) {
+                    if !userProfile.name.isEmpty {
+                        finalUserName = userProfile.name
+                        print("📱 DEBUG: Using profile name for post: '\(finalUserName)'")
+                    }
+                }
+            } catch {
+                print("⚠️ DEBUG: Could not retrieve user profile: \(error.localizedDescription)")
+                // Continue with the provided userName if profile retrieval fails
+            }
+        } else {
+            print("🔄 DEBUG: Using provided userName: '\(userName)'")
+        }
+        
+        // Make sure we have a non-empty username
+        finalUserName = finalUserName.isEmpty ? "Reader \(userID.prefix(4))" : finalUserName
+        print("🔄 DEBUG: Final userName: '\(finalUserName)'")
+        
         let post = CommunityPost(
             userID: userID,
-            userName: userName,
+            userName: finalUserName,
             bookID: bookID,
             sessionID: sessionID,
             title: title,
