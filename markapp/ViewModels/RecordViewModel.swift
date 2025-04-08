@@ -79,7 +79,11 @@ class RecordViewModel: ObservableObject {
         let workItem = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
             
-            // Pause voice recognition
+            // Pause voice recognition but preserve the transcript
+            // First save the current transcript by calling the public method
+            self.transcriptionManager.preserveCurrentTranscript()
+            
+            // Then stop recording
             self.transcriptionManager.stopRecording()
             
             DispatchQueue.main.async {
@@ -133,13 +137,18 @@ class RecordViewModel: ObservableObject {
         timer?.invalidate()
         isRunning = false
         
+        // Save the current transcript before stopping
+        let finalTranscript = transcriptionManager.transcript
+        
         // Stop voice recognition
         transcriptionManager.stopRecording()
         
         // Update session details
         session.endTime = Date()
         session.endPage = endPage
-        session.transcript = transcriptionManager.transcript
+        
+        // Use the saved transcript instead of possibly getting a reset one
+        session.transcript = finalTranscript
         
         // Save session
         DataManager.shared.addSession(session)
@@ -183,6 +192,9 @@ class RecordViewModel: ObservableObject {
         if showingTranscript {
             if !transcriptionManager.isRecording && isRunning {
                 print("Starting recording because transcript was toggled on")
+                
+                // Make sure we preserve existing transcript
+                transcriptionManager.preserveCurrentTranscript()
                 
                 // Stop any existing recording first
                 transcriptionManager.stopRecording()

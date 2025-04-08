@@ -360,9 +360,14 @@ class TranscriptionManager: NSObject, ObservableObject {
                 print("Recognized text: \(newTranscription)")
                 
                 DispatchQueue.main.async {
-                    // If we already have previous transcript, append the new text with a space
+                    // Always append to existing transcript with more careful handling of spacing
                     if !self.previousTranscript.isEmpty {
-                        self.transcript = self.previousTranscript + " " + newTranscription
+                        // Only update if we have a valid non-empty transcription
+                        if !newTranscription.isEmpty {
+                            self.transcript = self.previousTranscript + " " + newTranscription
+                        } else {
+                            self.transcript = self.previousTranscript
+                        }
                     } else {
                         self.transcript = newTranscription
                     }
@@ -460,8 +465,9 @@ class TranscriptionManager: NSObject, ObservableObject {
         print("Stopping recording process")
         isStoppingRecording = true
         
-        // Save the current transcript to preserve it for next recording session
-        self.previousTranscript = self.transcript
+        // We don't need to save current transcript to previousTranscript
+        // as this will overwrite the complete transcript with the current partial one
+        // self.previousTranscript = self.transcript
         
         // Cancel any previous timers immediately
         if let timer = levelUpdateTimer {
@@ -573,5 +579,10 @@ class TranscriptionManager: NSObject, ObservableObject {
         stopRecording()
         transcript = ""
         previousTranscript = ""
+    }
+    
+    // Public method to preserve transcript between recording sessions
+    func preserveCurrentTranscript() {
+        previousTranscript = transcript
     }
 } 
