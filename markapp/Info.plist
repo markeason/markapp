@@ -20,12 +20,12 @@
 	<string>Mark needs microphone access to record your voice during reading sessions</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Mark needs speech recognition to transcribe your voice during reading sessions.</string>
-	<key>SUPABASE_URL_FULL</key>
-	<string>$(SUPABASE_URL)</string>
-	<key>SUPABASE_KEY</key>
-	<string>$(SUPABASE_KEY)</string>
 	<key>OPENAI_API_KEY</key>
 	<string>$(OPENAI_API_KEY)</string>
+	<key>SUPABASE_KEY</key>
+	<string>$(SUPABASE_KEY)</string>
+	<key>SUPABASE_URL</key>
+	<string>$(SUPABASE_URL)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

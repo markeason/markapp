@@ -4,67 +4,66 @@ import Foundation
 struct AppConfig {
     // MARK: - Constants
     
-    private static let fallbackSupabaseURL = "https://upqqdccrwrhzzjvmpumb.supabase.co"
+    // Your production Supabase URL - this is not a secret
+    static let supabaseURL = "https://upqqdccrwrhzzjvmpumb.supabase.co"
     
-    // MARK: - Supabase Configuration
+    // MARK: - Helper Methods
     
-    /// The Supabase URL from configuration
-    static var supabaseURL: String {
-        // Try environment first (from xcconfig)
-        if let envUrl = ProcessInfo.processInfo.environment["SUPABASE_URL"]?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !envUrl.isEmpty, envUrl != "https:" {
-            print("📌 AppConfig: Using SUPABASE_URL from environment: '\(envUrl)'")
-            return envUrl
+    /// Helper to clean up configuration values by removing quotes and whitespace
+    private static func cleanConfigValue(_ value: String) -> String {
+        // Remove any surrounding quotes and whitespace
+        var cleanValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Check if surrounded by quotes and remove them
+        if cleanValue.hasPrefix("\"") && cleanValue.hasSuffix("\"") && cleanValue.count >= 2 {
+            let startIndex = cleanValue.index(after: cleanValue.startIndex)
+            let endIndex = cleanValue.index(before: cleanValue.endIndex)
+            cleanValue = String(cleanValue[startIndex..<endIndex])
         }
         
-        // Try Info.plist
-        if let plistUrl = (Bundle.main.infoDictionary?["SUPABASE_URL"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !plistUrl.isEmpty, plistUrl != "https:" {
-            print("📌 AppConfig: Using SUPABASE_URL from Info.plist: '\(plistUrl)'")
-            return plistUrl
-        }
-        
-        // Fallback to hardcoded URL
-        print("⚠️ AppConfig: Using fallback Supabase URL")
-        return fallbackSupabaseURL
+        return cleanValue
     }
+    
+    // MARK: - API Keys
     
     /// The Supabase API key from configuration
     static var supabaseKey: String {
-        // Try environment first (from xcconfig)
-        if let envKey = ProcessInfo.processInfo.environment["SUPABASE_KEY"]?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !envKey.isEmpty {
-            print("📌 AppConfig: Using SUPABASE_KEY from environment")
-            return envKey
+        // First try Info.plist
+        if let plistKey = Bundle.main.infoDictionary?["SUPABASE_KEY"] as? String {
+            let cleanKey = cleanConfigValue(plistKey)
+            if !cleanKey.isEmpty {
+                return cleanKey
+            }
         }
         
-        // Try Info.plist
-        if let plistKey = (Bundle.main.infoDictionary?["SUPABASE_KEY"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !plistKey.isEmpty {
-            print("📌 AppConfig: Using SUPABASE_KEY from Info.plist")
-            return plistKey
+        // Then try environment variables
+        if let envKey = ProcessInfo.processInfo.environment["SUPABASE_KEY"] {
+            let cleanKey = cleanConfigValue(envKey)
+            if !cleanKey.isEmpty {
+                return cleanKey
+            }
         }
         
         print("⚠️ AppConfig: SUPABASE_KEY not found")
         return ""
     }
     
-    // MARK: - OpenAI Configuration
-    
     /// The OpenAI API key from configuration
     static var openAIAPIKey: String {
-        // Try environment first (from xcconfig)
-        if let envKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"]?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !envKey.isEmpty {
-            print("📌 AppConfig: Using OPENAI_API_KEY from environment")
-            return envKey
+        // First try Info.plist
+        if let plistKey = Bundle.main.infoDictionary?["OPENAI_API_KEY"] as? String {
+            let cleanKey = cleanConfigValue(plistKey)
+            if !cleanKey.isEmpty {
+                return cleanKey
+            }
         }
         
-        // Try Info.plist
-        if let plistKey = (Bundle.main.infoDictionary?["OPENAI_API_KEY"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !plistKey.isEmpty {
-            print("📌 AppConfig: Using OPENAI_API_KEY from Info.plist")
-            return plistKey
+        // Then try environment variables
+        if let envKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] {
+            let cleanKey = cleanConfigValue(envKey)
+            if !cleanKey.isEmpty {
+                return cleanKey
+            }
         }
         
         print("⚠️ AppConfig: OPENAI_API_KEY not found")

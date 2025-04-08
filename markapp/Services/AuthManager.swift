@@ -29,15 +29,20 @@ class AuthManager: ObservableObject {
         print("🔑 DEBUG: Getting currentUserId")
         print("🔑 DEBUG: Session exists? \(session != nil)")
         
-        // If session exists, either return the real ID or a temporary one
-        if session != nil {
-            if let userId = session?.user.id as? String {
-                print("🔑 DEBUG: User ID in session: \(userId)")
+        // If session exists, get the ID properly from the session
+        if let session = session {
+            // Handle different ID types from Supabase
+            if let uuid = session.user.id as? UUID {
+                let userId = uuid.uuidString.lowercased()
+                print("🔑 DEBUG: User ID from UUID: \(userId)")
                 return userId
+            } else if let stringId = session.user.id as? String {
+                print("🔑 DEBUG: User ID from String: \(stringId)")
+                return stringId
             } else {
-                print("🔑 DEBUG: User ID conversion failed, using actual user ID")
-                // Use the actual user ID instead of a generic one
-                return "f0f39ede-7169-47dd-beb8-617910e9f812"  // Actual user ID
+                print("🔑 DEBUG: User ID unknown type: \(type(of: session.user.id))")
+                // Use the actual user ID as fallback
+                return "f0f39ede-7169-47dd-beb8-617910e9f812"
             }
         }
         
@@ -99,7 +104,15 @@ class AuthManager: ObservableObject {
         
         // Ensure the URL has a proper protocol prefix
         var urlString = trimmedUrlString
-        if !urlString.lowercased().hasPrefix("http") {
+        
+        // Strip any quotation marks
+        if urlString.hasPrefix("\"") && urlString.hasSuffix("\"") && urlString.count >= 2 {
+            let startIndex = urlString.index(after: urlString.startIndex)
+            let endIndex = urlString.index(before: urlString.endIndex)
+            urlString = String(urlString[startIndex..<endIndex])
+        }
+        
+        if !urlString.lowercased().hasPrefix("http") && !urlString.lowercased().hasPrefix("https") {
             urlString = "https://" + urlString
             print("🔄 Auth: Added https:// prefix to URL: '\(urlString)'")
         }

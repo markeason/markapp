@@ -131,7 +131,15 @@ class SupabaseManager {
         
         // Ensure the URL has a proper protocol prefix
         var urlString = trimmedUrlString
-        if !urlString.lowercased().hasPrefix("http") {
+        
+        // Strip any quotation marks
+        if urlString.hasPrefix("\"") && urlString.hasSuffix("\"") && urlString.count >= 2 {
+            let startIndex = urlString.index(after: urlString.startIndex)
+            let endIndex = urlString.index(before: urlString.endIndex)
+            urlString = String(urlString[startIndex..<endIndex])
+        }
+        
+        if !urlString.lowercased().hasPrefix("http") && !urlString.lowercased().hasPrefix("https") {
             urlString = "https://" + urlString
             print("🔄 SupabaseManager: Added https:// prefix to URL: '\(urlString)'")
         }

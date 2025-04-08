@@ -3,12 +3,32 @@ import Supabase
 
 @main
 struct MarkAppApp: App {
-    @StateObject private var authManager = AuthManager.shared
+    // Define a lazy var for the AuthManager so we can initialize it after config
+    @StateObject private var authManager: AuthManager
     
     init() {
-        // Validate API keys on app startup
+        // Preload configuration values statically before creating any managers
+        MarkAppApp.preloadConfigurationValues()
+        
+        // Validate API keys 
         AppConfig.validateAPIKeys()
+        
+        // Initialize AuthManager after config is loaded
+        let manager = AuthManager.shared
+        _authManager = StateObject(wrappedValue: manager)
+        
+        // Set up other features
         setupRealtimeFeatures()
+    }
+    
+    /// Preload and cache all configuration values before app initialization
+    private static func preloadConfigurationValues() {
+        // Ensure config is fully loaded before initializing any managers
+        print("🔄 App: Preloading configuration values...")
+        let supabaseUrl = AppConfig.supabaseURL 
+        let supabaseKey = AppConfig.supabaseKey
+        let openAIKey = AppConfig.openAIAPIKey
+        print("🔄 App: Finished preloading configuration")
     }
     
     var body: some Scene {

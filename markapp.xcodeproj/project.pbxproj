@@ -14,11 +14,11 @@
 /* Begin PBXFileReference section */
 		9B275D372D9D25D40058D7E8 /* markapp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = markapp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B275D752D9D9C290058D7E8 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
-		9B4B92422DA39168008210E2 /* secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = secrets.xcconfig; sourceTree = "<group>"; };
+		9BDB99882DA594EE00AFCDE6 /* secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = secrets.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		9BDB95822DA397F100AFCDE6 /* Exceptions for "markapp" folder in "markapp" target */ = {
+		9BDB998A2DA598A300AFCDE6 /* Exceptions for "markapp" folder in "markapp" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -31,7 +31,7 @@
 		9B275D392D9D25D40058D7E8 /* markapp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				9BDB95822DA397F100AFCDE6 /* Exceptions for "markapp" folder in "markapp" target */,
+				9BDB998A2DA598A300AFCDE6 /* Exceptions for "markapp" folder in "markapp" target */,
 			);
 			path = markapp;
 			sourceTree = "<group>";
@@ -53,7 +53,7 @@
 		9B275D2E2D9D25D40058D7E8 = {
 			isa = PBXGroup;
 			children = (
-				9B4B92422DA39168008210E2 /* secrets.xcconfig */,
+				9BDB99882DA594EE00AFCDE6 /* secrets.xcconfig */,
 				9B275D752D9D9C290058D7E8 /* .gitignore */,
 				9B275D392D9D25D40058D7E8 /* markapp */,
 				9B2760FC2DA209520058D7E8 /* Frameworks */,
@@ -163,7 +163,7 @@
 /* Begin XCBuildConfiguration section */
 		9B275D402D9D25D50058D7E8 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9B4B92422DA39168008210E2 /* secrets.xcconfig */;
+			baseConfigurationReference = 9BDB99882DA594EE00AFCDE6 /* secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -231,7 +231,7 @@
 		};
 		9B275D412D9D25D50058D7E8 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9B4B92422DA39168008210E2 /* secrets.xcconfig */;
+			baseConfigurationReference = 9BDB99882DA594EE00AFCDE6 /* secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -295,7 +295,7 @@
 		};
 		9B275D432D9D25D50058D7E8 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9B4B92422DA39168008210E2 /* secrets.xcconfig */;
+			baseConfigurationReference = 9BDB99882DA594EE00AFCDE6 /* secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -329,7 +329,7 @@
 		};
 		9B275D442D9D25D50058D7E8 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9B4B92422DA39168008210E2 /* secrets.xcconfig */;
+			baseConfigurationReference = 9BDB99882DA594EE00AFCDE6 /* secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
