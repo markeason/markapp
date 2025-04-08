@@ -3,11 +3,12 @@ import Supabase
 
 @main
 struct MarkAppApp: App {
-    @StateObject private var authManager = AuthManager()
+    @StateObject private var authManager = AuthManager.shared
     
     init() {
         // Validate API keys on app startup
         AppConfig.validateAPIKeys()
+        setupRealtimeFeatures()
     }
     
     var body: some Scene {
@@ -15,6 +16,48 @@ struct MarkAppApp: App {
             ContentRoot()
                 .environmentObject(authManager)
         }
+    }
+    
+    private func setupRealtimeFeatures() {
+        // Setup Supabase realtime features
+        
+        // Handle user authentication
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("UserDidAuthenticate"),
+            object: nil,
+            queue: .main) { _ in
+                SupabaseManager.shared.subscribeToCommunityPosts()
+            }
+        
+        // Handle app lifecycle
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willResignActiveNotification,
+            object: nil,
+            queue: .main) { _ in
+                Task {
+                    await SupabaseManager.shared.unsubscribeFromCommunityPosts()
+                }
+            }
+        
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main) { _ in
+                if AuthManager.shared.isAuthenticated {
+                    SupabaseManager.shared.subscribeToCommunityPosts()
+                }
+            }
+        
+        // Handle network changes
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("NetworkStatusChanged"),
+            object: nil,
+            queue: .main) { notification in
+                if let isConnected = notification.userInfo?["isConnected"] as? Bool, 
+                   isConnected && AuthManager.shared.isAuthenticated {
+                    SupabaseManager.shared.subscribeToCommunityPosts()
+                }
+            }
     }
 }
 

@@ -257,12 +257,7 @@ struct ProfileView: View {
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-                
+              
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(viewModel.isEditing ? "Save" : "Edit") {
                         if viewModel.isEditing {

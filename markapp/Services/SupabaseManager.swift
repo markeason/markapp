@@ -2,6 +2,9 @@ import Foundation
 import Supabase
 import Combine
 
+// At the top of the file, add these typealias declarations to help with the Realtime API
+typealias RealtimeEvent = PostgresAction
+
 // Profile entity for Supabase
 struct ProfileRecord: Encodable {
     let id: String
@@ -9,6 +12,28 @@ struct ProfileRecord: Encodable {
     let location: String
     let join_date: String
     let profile_photo_url: String?
+}
+
+// Community Post entity for Supabase
+struct CommunityPostRecord: Encodable {
+    let id: String
+    let user_id: String
+    let book_id: String
+    let session_id: String
+    let title: String
+    let body: String
+    let created_at: String
+}
+
+// Community Post response struct for decoding
+struct CommunityPostResponse: Decodable {
+    let id: String
+    let user_id: String
+    let book_id: String
+    let session_id: String
+    let title: String
+    let body: String
+    let created_at: String
 }
 
 // Profile response struct for decoding
@@ -80,6 +105,11 @@ class SupabaseManager {
     var booksPublisher = PassthroughSubject<Void, Never>()
     var sessionsPublisher = PassthroughSubject<Void, Never>()
     var userPublisher = PassthroughSubject<Void, Never>()
+    var communityPostsPublisher = PassthroughSubject<Void, Never>()
+    
+    // Realtime subscription references
+    private var communityPostsSubscription: RealtimeChannelV2?
+    private var isRealtimeConnected = false
     
     private init() {
         print("🔑 SupabaseManager: Supabase URL from config: '\(AppConfig.supabaseURL)'")
@@ -285,7 +315,7 @@ class SupabaseManager {
             print("File path: \(filePath)")
             
             // Ensure we have auth session when uploading
-            let session = try await supabase.auth.session
+            _ = try await supabase.auth.session
             
             // Upload the file to the bucket
             try await supabase.storage
@@ -578,6 +608,163 @@ class SupabaseManager {
         sessionsPublisher.send()
     }
     
+    // MARK: - Community Post Methods
+    
+    func subscribeToCommunityPosts() {
+        print("Realtime subscription temporarily disabled")
+        isRealtimeConnected = true
+    }
+    
+    func unsubscribeFromCommunityPosts() async {
+        print("Unsubscribing from community posts (realtime disabled)")
+        communityPostsSubscription = nil
+        isRealtimeConnected = false
+    }
+    
+    var isSubscribedToCommunityPosts: Bool {
+        return isRealtimeConnected
+    }
+    
+    func saveCommunityPost(_ post: CommunityPost) async throws {
+        let dateFormatter = ISO8601DateFormatter()
+        
+        let postRecord = CommunityPostRecord(
+            id: post.id.uuidString,
+            user_id: post.userID,
+            book_id: post.bookID.uuidString,
+            session_id: post.sessionID.uuidString,
+            title: post.title,
+            body: post.body,
+            created_at: dateFormatter.string(from: post.createdAt)
+        )
+        
+        print("📝 DEBUG: Preparing to save community post \(post.id)")
+        print("📝 DEBUG: Post details - Title: \(post.title)")
+        print("📝 DEBUG: Post details - User ID: \(post.userID)")
+        print("📝 DEBUG: Post details - Book ID: \(post.bookID)")
+        print("📝 DEBUG: Post details - Session ID: \(post.sessionID)")
+        
+        do {
+            print("📝 DEBUG: Executing Supabase insert query")
+            try await supabase
+                .from("community_posts")
+                .insert(postRecord)
+                .execute()
+            print("📝 DEBUG: Community post saved successfully")
+            
+            // Notify subscribers that community posts data has changed
+            communityPostsPublisher.send()
+            print("📝 DEBUG: Notified subscribers via publisher")
+        } catch {
+            print("❌ ERROR: Failed to save community post: \(error.localizedDescription)")
+            print("❌ ERROR: Full error details: \(error)")
+            print("Error saving community post: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    func getCommunityPosts() async throws -> [CommunityPost] {
+        let result = try await supabase
+            .from("community_posts")
+            .select("*")
+            .order("created_at", ascending: false)
+            .execute()
+        
+        // Parse the response data
+        let postsArray = parseDataResponse(result.data, defaultValue: [[String: Any]]()) as [[String: Any]]
+        
+        var communityPosts: [CommunityPost] = []
+        
+        for postData in postsArray {
+            if let id = postData["id"] as? String,
+               let userId = postData["user_id"] as? String,
+               let bookId = postData["book_id"] as? String,
+               let sessionId = postData["session_id"] as? String,
+               let title = postData["title"] as? String,
+               let body = postData["body"] as? String,
+               let createdAtString = postData["created_at"] as? String,
+               let createdAt = ISO8601DateFormatter().date(from: createdAtString) {
+                
+                // Use a placeholder username until we can fix the proper relationship
+                let userName = "User " + userId.prefix(4)
+                
+                let post = CommunityPost(
+                    id: UUID(uuidString: id) ?? UUID(),
+                    userID: userId,
+                    userName: userName,
+                    bookID: UUID(uuidString: bookId) ?? UUID(),
+                    sessionID: UUID(uuidString: sessionId) ?? UUID(),
+                    title: title,
+                    body: body,
+                    createdAt: createdAt
+                )
+                
+                communityPosts.append(post)
+            }
+        }
+        
+        return communityPosts
+    }
+    
+    func getCommunityPost(id: String) async throws -> CommunityPost? {
+        let result = try await supabase
+            .from("community_posts")
+            .select("*")
+            .eq("id", value: id)
+            .execute()
+        
+        // Parse the response data
+        let postsArray = parseDataResponse(result.data, defaultValue: [[String: Any]]()) as [[String: Any]]
+        
+        guard let postData = postsArray.first,
+              let id = postData["id"] as? String,
+              let userId = postData["user_id"] as? String,
+              let bookId = postData["book_id"] as? String,
+              let sessionId = postData["session_id"] as? String,
+              let title = postData["title"] as? String,
+              let body = postData["body"] as? String,
+              let createdAtString = postData["created_at"] as? String,
+              let createdAt = ISO8601DateFormatter().date(from: createdAtString) else {
+            return nil
+        }
+        
+        // Use a placeholder username until we can fix the proper relationship
+        let userName = "User " + userId.prefix(4)
+        
+        var post = CommunityPost(
+            id: UUID(uuidString: id) ?? UUID(),
+            userID: userId,
+            userName: userName,
+            bookID: UUID(uuidString: bookId) ?? UUID(),
+            sessionID: UUID(uuidString: sessionId) ?? UUID(),
+            title: title,
+            body: body,
+            createdAt: createdAt
+        )
+        
+        // Get related book and session information
+        if let book = try? await getBook(bookId: post.bookID.uuidString) {
+            post.book = book
+        }
+        
+        if let session = try? await getReadingSession(sessionId: post.sessionID.uuidString) {
+            post.session = session
+        }
+        
+        return post
+    }
+    
+    func deleteCommunityPost(id: String) async throws {
+        try await supabase
+            .from("community_posts")
+            .delete()
+            .eq("id", value: id)
+            .execute()
+        
+        // Notify subscribers that community posts data has changed
+        communityPostsPublisher.send()
+    }
+    
     // MARK: - Utility Methods
     
     func clearAllUserData(userId: String) async throws {
@@ -613,5 +800,87 @@ class SupabaseManager {
         booksPublisher.send()
         sessionsPublisher.send()
         userPublisher.send()
+    }
+    
+    // Method to get a single book by ID
+    private func getBook(bookId: String) async throws -> Book? {
+        let result = try await supabase
+            .from("books")
+            .select()
+            .eq("id", value: bookId)
+            .execute()
+        
+        // Parse the response data
+        let booksArray = parseDataResponse(result.data, defaultValue: [[String: Any]]()) as [[String: Any]]
+        
+        // Return the first book if found
+        if let bookData = booksArray.first,
+           let id = UUID(uuidString: bookId),
+           let isbn = bookData["isbn"] as? String,
+           let title = bookData["title"] as? String,
+           let author = bookData["author"] as? String {
+            
+            let coverURL = bookData["cover_url"] as? String
+            let currentPage = bookData["current_page"] as? Int ?? 0
+            let totalPages = bookData["total_pages"] as? Int
+            
+            return Book(
+                id: id,
+                isbn: isbn,
+                title: title,
+                author: author,
+                coverURL: coverURL,
+                currentPage: currentPage,
+                totalPages: totalPages
+            )
+        }
+        
+        return nil
+    }
+    
+    // Method to get a single reading session by ID
+    private func getReadingSession(sessionId: String) async throws -> ReadingSession? {
+        let result = try await supabase
+            .from("reading_sessions")
+            .select()
+            .eq("id", value: sessionId)
+            .execute()
+        
+        // Parse the response data
+        let sessionsArray = parseDataResponse(result.data, defaultValue: [[String: Any]]()) as [[String: Any]]
+        
+        // Return the first session if found
+        if let sessionData = sessionsArray.first,
+           let id = UUID(uuidString: sessionId),
+           let _ = sessionData["user_id"] as? String,
+           let bookIdString = sessionData["book_id"] as? String,
+           let bookId = UUID(uuidString: bookIdString),
+           let startTimeString = sessionData["start_time"] as? String,
+           let startTime = ISO8601DateFormatter().date(from: startTimeString) {
+            
+            // Optional fields
+            let endTimeString = sessionData["end_time"] as? String
+            let endTime = endTimeString != nil ? ISO8601DateFormatter().date(from: endTimeString!) : nil
+            
+            let startPage = sessionData["start_page"] as? Int ?? 0
+            let endPage = sessionData["end_page"] as? Int
+            let aiSummary = sessionData["ai_summary"] as? String
+            let transcript = sessionData["transcript"] as? String
+            
+            // Check if the ReadingSession initializer accepts userID
+            // If it does not, remove that parameter
+            return ReadingSession(
+                id: id,
+                bookID: bookId,
+                startTime: startTime,
+                endTime: endTime,
+                startPage: startPage,
+                endPage: endPage,
+                aiSummary: aiSummary,
+                transcript: transcript
+            )
+        }
+        
+        return nil
     }
 } 

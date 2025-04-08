@@ -27,6 +27,12 @@ struct MainTabView: View {
                     Label("Record", systemImage: "timer")
                 }
             
+            CommunityFeedView()
+                .environmentObject(authManager)
+                .tabItem {
+                    Label("Community", systemImage: "person.3")
+                }
+            
             ProfileView()
                 .environmentObject(authManager)
                 .tabItem {
