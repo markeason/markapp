@@ -40,19 +40,18 @@ class AuthManager: ObservableObject {
                 print("🔑 DEBUG: User ID from String: \(stringId)")
                 return stringId
             } else {
-                print("🔑 DEBUG: User ID unknown type: \(type(of: session.user.id))")
-                // Use the actual user ID as fallback
-                return "f0f39ede-7169-47dd-beb8-617910e9f812"
+                print("❌ ERROR: User ID has unknown type: \(type(of: session.user.id))")
+                self.error = NSError(
+                    domain: "AuthManager",
+                    code: -1010,
+                    userInfo: [NSLocalizedDescriptionKey: "Unable to process user ID from session."]
+                )
+                return nil
             }
         }
         
-        // TEMPORARY WORKAROUND: Return a placeholder user ID to allow post creation
-        if isAuthenticated || currentUser != nil {
-            print("🔑 DEBUG: No session but authenticated, returning actual user ID")
-            return "f0f39ede-7169-47dd-beb8-617910e9f812"  // Actual user ID
-        }
-        
-        print("🔑 DEBUG: No session and not authenticated, returning nil")
+        // No session means no user ID
+        print("🔑 DEBUG: No session, returning nil user ID")
         return nil
     }
     
@@ -730,3 +729,4 @@ class AuthManager: ObservableObject {
         }
     }
 }
+
