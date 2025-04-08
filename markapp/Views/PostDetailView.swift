@@ -201,38 +201,26 @@ struct PostDetailView: View {
     }
     
     private func setupRealtimeUpdates() {
-        cancellable = SupabaseManager.shared.communityPostsPublisher
+        // Create a combined cancellable for both subscriptions
+        let postUpdateCancellable = SupabaseManager.shared.communityPostsPublisher
             .receive(on: RunLoop.main)
-            .sink { [weak viewModel, postID] _ in
-                // When any post changes, check if our post was affected
+            .sink { [self] _ in
                 Task { @MainActor in
-                    guard let viewModel = viewModel else { return }
-                    let updatedPost = await viewModel.getPostDetails(postID: postID)
-                    if updatedPost != nil {
-                        NotificationCenter.default.post(name: Notification.Name("PostUpdated-\(postID)"), object: updatedPost)
+                    if let updatedPost = await viewModel.getPostDetails(postID: postID) {
+                        let oldPost = post
+                        post = updatedPost
+                        
+                        // Show indicator if the post was updated
+                        if oldPost != nil && oldPost != updatedPost {
+                            showUpdateIndicator()
+                        }
                     }
                 }
             }
         
-        // Listen for our specific post update notification
-        let notificationCancellable = NotificationCenter.default.publisher(for: Notification.Name("PostUpdated-\(postID)"))
-            .receive(on: RunLoop.main)
-            .sink { notification in
-                if let updatedPost = notification.object as? CommunityPost {
-                    let oldPost = self.post
-                    self.post = updatedPost
-                    
-                    // Show indicator if the post was updated
-                    if oldPost != nil && oldPost != updatedPost {
-                        self.showUpdateIndicator()
-                    }
-                }
-            }
-        
-        // Store this cancellable too
+        // Store cancellable for cleanup
         self.cancellable = AnyCancellable {
-            notificationCancellable.cancel()
-            self.cancellable?.cancel()
+            postUpdateCancellable.cancel()
         }
     }
     

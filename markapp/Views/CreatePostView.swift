@@ -207,36 +207,25 @@ struct CreatePostView: View {
     }
     
     private func createPost() {
-        print("📱 DEBUG: createPost button pressed in CreatePostView")
-        print("📱 DEBUG: selectedBookID exists? \(selectedBookID != nil)")
-        print("📱 DEBUG: selectedSessionID exists? \(selectedSessionID != nil)")
-        print("📱 DEBUG: AuthManager authenticated? \(authManager.isAuthenticated)")
-        print("📱 DEBUG: AuthManager currentUser exists? \(authManager.currentUser != nil)")
-        print("📱 DEBUG: Attempting to get authManager.currentUserId...")
-        
         // Get the required IDs
         guard let bookID = selectedBookID, 
               let sessionID = selectedSessionID else {
-            print("❌ DEBUG: Missing book or session ID")
             errorMessage = "Please select a book and reading session"
             return
         }
         
         // Ensure user is authenticated
         guard authManager.isAuthenticated else {
-            print("❌ DEBUG: User is not authenticated")
             errorMessage = "Please sign in to create a post"
             return
         }
         
         // Get current user ID
         guard let userID = authManager.currentUserId else {
-            print("❌ DEBUG: No valid user ID available")
             errorMessage = "Unable to create post: User ID not found"
             return
         }
         
-        print("📱 DEBUG: Using authenticated userID: \(userID)")
         createPostWithUserId(userID)
     }
     
@@ -245,46 +234,24 @@ struct CreatePostView: View {
         
         Task {
             do {
-                print("📱 DEBUG: Calling viewModel.createPost")
+                // Get user name from profile or use default
+                var userName = authManager.currentUser?.name ?? "Reader \(userID.prefix(4))"
                 
-                // Get or create the user's profile
-                var userName = "Reader \(userID.prefix(4))" // Default fallback
-                
-                // Try to get existing profile
+                // Check if profile exists, create if needed
                 if let profile = try? await SupabaseManager.shared.getUserProfile(userId: userID) {
                     if !profile.name.isEmpty {
                         userName = profile.name
-                        print("📱 DEBUG: Got name from profile: '\(userName)'")
-                    } else {
-                        // Profile exists but has no name, update it
-                        print("📱 DEBUG: Profile exists but has no name, updating it")
-                        let defaultName = authManager.currentUser?.name ?? userName
-                        let updatedUser = User(
-                            name: defaultName,
-                            location: profile.location,
-                            joinDate: profile.joinDate,
-                            profilePhotoData: profile.profilePhotoData
-                        )
-                        try await SupabaseManager.shared.saveUserProfile(updatedUser, userId: userID)
-                        userName = defaultName
-                        print("📱 DEBUG: Updated profile with name: '\(userName)'")
                     }
                 } else {
-                    // No profile found, create one
-                    print("📱 DEBUG: No profile found, creating new profile")
-                    let defaultName = authManager.currentUser?.name ?? userName
+                    // Create a basic profile if none exists
                     let newUser = User(
-                        name: defaultName,
+                        name: userName,
                         location: "",
                         joinDate: Date(),
                         profilePhotoData: nil
                     )
-                    try await SupabaseManager.shared.saveUserProfile(newUser, userId: userID)
-                    userName = defaultName
-                    print("📱 DEBUG: Created new profile with name: '\(userName)'")
+                    try? await SupabaseManager.shared.saveUserProfile(newUser, userId: userID)
                 }
-                
-                print("📱 DEBUG: Final userName for post: '\(userName)'")
                 
                 await viewModel.createPost(
                     title: title,
@@ -295,13 +262,11 @@ struct CreatePostView: View {
                     userName: userName
                 )
                 
-                print("📱 DEBUG: Post creation completed, dismissing view")
                 await MainActor.run {
                     isLoading = false
                     presentationMode.wrappedValue.dismiss()
                 }
             } catch {
-                print("❌ DEBUG: Error in CreatePostView: \(error.localizedDescription)")
                 await MainActor.run {
                     isLoading = false
                     errorMessage = "Failed to create post: \(error.localizedDescription)"

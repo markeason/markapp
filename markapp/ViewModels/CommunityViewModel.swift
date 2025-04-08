@@ -81,18 +81,13 @@ class CommunityViewModel: ObservableObject {
     
     @MainActor
     func createPost(title: String, body: String, bookID: UUID, sessionID: UUID, userID: String, userName: String) async {
-        print("🔄 DEBUG: createPost called in CommunityViewModel")
-        print("🔄 DEBUG: Parameters - Title: \(title), UserID: \(userID)")
-        print("🔄 DEBUG: Parameters - UserName: '\(userName)'")
-        print("🔄 DEBUG: Parameters - BookID: \(bookID), SessionID: \(sessionID)")
-        
         isLoading = true
         errorMessage = nil
         
         // Limit to 300 characters
         let limitedBody = body.count <= 300 ? body : String(body.prefix(300))
         
-        // Only fetch the profile if the userName is empty or appears to be a default name
+        // Use provided userName or fetch from profile if needed
         var finalUserName = userName
         
         if userName.isEmpty || userName.hasPrefix("Reader ") {
@@ -100,20 +95,15 @@ class CommunityViewModel: ObservableObject {
                 if let userProfile = try await supabaseManager.getUserProfile(userId: userID) {
                     if !userProfile.name.isEmpty {
                         finalUserName = userProfile.name
-                        print("📱 DEBUG: Using profile name for post: '\(finalUserName)'")
                     }
                 }
             } catch {
-                print("⚠️ DEBUG: Could not retrieve user profile: \(error.localizedDescription)")
                 // Continue with the provided userName if profile retrieval fails
             }
-        } else {
-            print("🔄 DEBUG: Using provided userName: '\(userName)'")
         }
         
         // Make sure we have a non-empty username
         finalUserName = finalUserName.isEmpty ? "Reader \(userID.prefix(4))" : finalUserName
-        print("🔄 DEBUG: Final userName: '\(finalUserName)'")
         
         let post = CommunityPost(
             userID: userID,
@@ -125,16 +115,11 @@ class CommunityViewModel: ObservableObject {
             createdAt: Date()
         )
         
-        print("🔄 DEBUG: Created post object with ID: \(post.id)")
-        
         do {
-            print("🔄 DEBUG: Calling supabaseManager.saveCommunityPost")
             try await supabaseManager.saveCommunityPost(post)
-            print("✅ DEBUG: Post saved successfully")
             isLoading = false
             await loadPosts() // Refresh posts after creating
         } catch {
-            print("❌ DEBUG: Error saving post: \(error.localizedDescription)")
             errorMessage = "Failed to create post: \(error.localizedDescription)"
             isLoading = false
         }

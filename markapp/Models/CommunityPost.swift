@@ -21,13 +21,9 @@ struct CommunityPost: Identifiable, Codable, Hashable {
         return formatter.string(from: createdAt)
     }
     
-    // Ensure body text is limited to 300 characters
+    // Ensure body text is limited to 200 characters
     var limitedBody: String {
-        if body.count <= 300 {
-            return body
-        }
-        let index = body.index(body.startIndex, offsetBy: 297)
-        return String(body[..<index]) + "..."
+        body.count <= 200 ? body : String(body.prefix(197)) + "..."
     }
     
     // Display a default name if user name is empty

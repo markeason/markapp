@@ -97,9 +97,7 @@ struct CommunityFeedView: View {
                     .environmentObject(authManager)
             }
             .task {
-                if viewModel.posts.isEmpty {
-                    await viewModel.loadPosts()
-                }
+                await viewModel.loadPosts()
                 
                 // Show realtime indicator shortly after view appears
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
